@@ -1846,7 +1846,7 @@ MonoBehaviour:
   codeEntryPanel: {fileID: 435836832}
   trainingPanel: {fileID: 420040742}
   resultsPanel: {fileID: 57514540}
-  passingScore: 70
+  passingScore: 50
   maxScore: 100
 --- !u!4 &1270761682
 Transform:
