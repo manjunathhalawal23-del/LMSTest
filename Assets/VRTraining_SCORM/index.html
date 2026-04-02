@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>VR Safety Training</title>
+    <script src="scormdriver.js"></script>
+    <link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+<div class="container">
+    <h1>VR Safety Training</h1>
+    <p class="subtitle" id="learnerGreeting">Loading configuration...</p>
+
+    <!-- Phase 1: Show launch code -->
+    <div id="codePhase" style="display:none;">
+        <p>Enter this code on your VR headset:</p>
+        <div class="launch-code" id="launchCode">------</div>
+        <div class="status waiting" id="statusText">
+            <span class="spinner"></span> Waiting for VR session...
+        </div>
+        <div class="instructions">
+            <strong>Instructions:</strong>
+            <ol>
+                <li>Put on your Meta Quest headset</li>
+                <li>Open the <strong>VR Safety Training</strong> app</li>
+                <li>Enter the 6-digit code shown above</li>
+                <li>Complete all training modules</li>
+                <li>Your score will appear here automatically</li>
+            </ol>
+        </div>
+    </div>
+
+    <!-- Phase 2: Show results -->
+    <div id="resultPhase" style="display:none;">
+        <p>Training Complete!</p>
+        <div class="score-display" id="scoreDisplay"></div>
+        <p id="resultDetails"></p>
+        <p class="status complete">Your results have been recorded in the LMS.</p>
+    </div>
+
+    <!-- Error state -->
+    <div id="errorPhase" style="display:none;">
+        <p class="status error" id="errorText">An error occurred.</p>
+    </div>
+</div>
+
+<script>
+(function () {
+    "use strict";
+
+    // ── State ──────────────────────────────────────────────────
+    var MIDDLEWARE_URL = "";
+    var POLL_INTERVAL_MS = 5000;
+    var COURSE_TITLE = "VR Safety Training";
+    var sessionCode = null;
+    var pollTimer = null;
+
+    // ── DOM refs ───────────────────────────────────────────────
+    var learnerGreeting = document.getElementById("learnerGreeting");
+    var codePhase = document.getElementById("codePhase");
+    var resultPhase = document.getElementById("resultPhase");
+    var errorPhase = document.getElementById("errorPhase");
+    var launchCodeEl = document.getElementById("launchCode");
+    var statusText = document.getElementById("statusText");
+    var scoreDisplay = document.getElementById("scoreDisplay");
+    var resultDetails = document.getElementById("resultDetails");
+    var errorText = document.getElementById("errorText");
+
+    // ── Boot: load config.json first ───────────────────────────
+    fetch("config.json")
+        .then(function (res) { return res.json(); })
+        .then(function (cfg) {
+            MIDDLEWARE_URL = (cfg.middlewareUrl || "").replace(/\/+$/, "");
+            POLL_INTERVAL_MS = cfg.pollIntervalMs || 5000;
+            COURSE_TITLE = cfg.courseTitle || "VR Safety Training";
+
+            if (!MIDDLEWARE_URL) {
+                showError("middlewareUrl is not set in config.json");
+                return;
+            }
+            console.log("[SCORM] Loaded config — middleware: " + MIDDLEWARE_URL);
+            init();
+        })
+        .catch(function (err) {
+            showError("Failed to load config.json: " + err.message);
+        });
+
+    function init() {
+        ScormDriver.initialize();
+        var info = ScormDriver.getLearnerInfo();
+        learnerGreeting.textContent = "Welcome, " + info.learnerName;
+        createSession(info);
+    }
+
+    function createSession(learnerInfo) {
+        var body = JSON.stringify({
+            learnerName: learnerInfo.learnerName,
+            learnerID: learnerInfo.learnerID,
+            courseTitle: COURSE_TITLE,
+            expiryMinutes: 60
+        });
+
+        fetch(MIDDLEWARE_URL + "/session/create", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: body
+        })
+        .then(function (res) { return res.json(); })
+        .then(function (data) {
+            sessionCode = data.code;
+            launchCodeEl.textContent = sessionCode;
+            codePhase.style.display = "block";
+            startPolling();
+        })
+        .catch(function (err) {
+            showError("Failed to create session: " + err.message);
+        });
+    }
+
+    function startPolling() {
+        pollTimer = setInterval(function () {
+            fetch(MIDDLEWARE_URL + "/session/" + sessionCode + "/result")
+                .then(function (res) { return res.json(); })
+                .then(function (data) {
+                    if (data.completed) {
+                        clearInterval(pollTimer);
+                        onTrainingComplete(data);
+                    }
+                })
+                .catch(function (err) {
+                    console.warn("[SCORM] Poll error:", err);
+                });
+        }, POLL_INTERVAL_MS);
+    }
+
+    function onTrainingComplete(data) {
+        ScormDriver.setScore(data.scoreRaw, data.scoreMin, data.scoreMax, data.passingScore);
+        if (data.duration) {
+            ScormDriver.setSessionTime(data.duration);
+        }
+        ScormDriver.commit();
+        ScormDriver.finish();
+
+        var passed = data.scoreRaw >= data.passingScore;
+        scoreDisplay.textContent = data.scoreRaw + " / " + data.scoreMax +
+            (passed ? " \u2014 PASSED" : " \u2014 NOT PASSED");
+        scoreDisplay.className = "score-display " + (passed ? "passed" : "failed");
+        resultDetails.textContent = data.details || "";
+
+        codePhase.style.display = "none";
+        resultPhase.style.display = "block";
+    }
+
+    function showError(msg) {
+        codePhase.style.display = "none";
+        errorText.textContent = msg;
+        errorPhase.style.display = "block";
+    }
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<manifest identifier="VRTraining_SCORM_PKG"
+          version="1.0"
+          xmlns="http://www.imsproject.org/xsd/imscp_rootv1p1p2"
+          xmlns:adlcp="http://www.adlnet.org/xsd/adlcp_rootv1p2"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://www.imsproject.org/xsd/imscp_rootv1p1p2 imscp_rootv1p1p2.xsd
+                              http://www.adlnet.org/xsd/adlcp_rootv1p2 adlcp_rootv1p2.xsd">
+
+  <metadata>
+    <schema>ADL SCORM</schema>
+    <schemaversion>1.2</schemaversion>
+  </metadata>
+
+  <organizations default="VRTraining_Org">
+    <organization identifier="VRTraining_Org">
+      <title>VR Safety Training</title>
+      <item identifier="VRTraining_Item" identifierref="VRTraining_Resource">
+        <title>VR Safety Training Session</title>
+        <adlcp:masteryscore>70</adlcp:masteryscore>
+      </item>
+    </organization>
+  </organizations>
+
+  <resources>
+    <resource identifier="VRTraining_Resource"
+              type="webcontent"
+              adlcp:scormtype="sco"
+              href="index.html">
+      <file href="index.html"/>
+      <file href="scormdriver.js"/>
+    </resource>
+  </resources>
+</manifest>

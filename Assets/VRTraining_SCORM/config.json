@@ -1,0 +1,5 @@
+{
+    "middlewareUrl": "http://localhost:5080/api",
+    "pollIntervalMs": 5000,
+    "courseTitle": "VR Safety Training"
+}
